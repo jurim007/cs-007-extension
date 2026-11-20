@@ -16,21 +16,24 @@ data class FilmaOnPlayerResponse(
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class FilmaOnLoadData(
-    val postId: String,
-    val serverNumbers: List<String>,
-    val subtitles: List<String>,
+    val postId: String = "",
+    val serverNumbers: List<String> = emptyList(),
+    val subtitles: List<String> = emptyList(),
+    val type: String = "movie",
+    val episodeUrl: String? = null,
 )
 
 class FilmaOnProvider : MainAPI() {
     override var mainUrl = "https://filmaon.live"
     override var name = "FilmaOn"
-    override val supportedTypes = setOf(TvType.Movie)
+    override val supportedTypes = setOf(TvType.Movie, TvType.TvSeries)
     override var lang = "sq"
     override val hasMainPage = true
     override val hasQuickSearch = false
 
     override val mainPage = listOf(
         MainPageData("Filmat e fundit", "latest"),
+        MainPageData("Serialet e fundit", "latest-series"),
         MainPageData("Aksion", "genre/action"),
         MainPageData("Aventurë", "genre/adventure"),
         MainPageData("Animacion", "genre/animation"),
@@ -52,11 +55,15 @@ class FilmaOnProvider : MainAPI() {
         page: Int,
         request: MainPageRequest
     ): HomePageResponse {
-        val pageUrl = if (request.data == "latest") {
-            if (page == 1) "$mainUrl/filma/" else "$mainUrl/filma/page/$page/"
-        } else {
-            val base = "$mainUrl/${request.data}/"
-            if (page == 1) base else "$mainUrl/${request.data}/page/$page/"
+        val pageUrl = when (request.data) {
+            "latest" ->
+                if (page == 1) "$mainUrl/filma/" else "$mainUrl/filma/page/$page/"
+            "latest-series" ->
+                if (page == 1) "$mainUrl/seriale/" else "$mainUrl/seriale/page/$page/"
+            else -> {
+                val base = "$mainUrl/${request.data}/"
+                if (page == 1) base else "$mainUrl/${request.data}/page/$page/"
+            }
         }
 
         val document = app.get(pageUrl).document
@@ -95,6 +102,7 @@ class FilmaOnProvider : MainAPI() {
             .replace(Regex("""\s+\(\d{4}\)\s*$"""), "")
             .trim()
             .ifBlank { "Film pa titull" }
+        val isSeries = url.contains("/seriale/")
 
         val description = document.selectFirst("meta[property=og:description]")
             ?.attr("content")
@@ -117,6 +125,10 @@ class FilmaOnProvider : MainAPI() {
             ?: document.select(".film24-movie-year")
                 .text()
                 .toIntOrNull()
+            ?: Regex("""\b(19|20)\d{2}\b""")
+                .find(document.select(".sheader .date").text())
+                ?.value
+                ?.toIntOrNull()
 
         val duration = Regex("""(\d+)\s*(?:min|minuta?)""",
             RegexOption.IGNORE_CASE)
@@ -132,19 +144,6 @@ class FilmaOnProvider : MainAPI() {
             ?.get(1)
             ?.replace(',', '.')
             ?.toDoubleOrNull()
-
-        val postId = document.select("li.dooplay_player_option[data-post]")
-            .firstNotNullOfOrNull { it.attr("data-post").takeIf { id -> id.isNotBlank() } }
-            ?: return null
-
-        val serverNumbers = document.select("li.dooplay_player_option[data-nume]")
-            .map { it.attr("data-nume") }
-            .filter { it.isNotBlank() && it != "trailer" }
-            .distinct()
-
-        val subtitles = extractSubtitles(document)
-        val loadData = FilmaOnLoadData(postId, serverNumbers, subtitles)
-        val data = jacksonObjectMapper().writeValueAsString(loadData)
 
         val tags = document.select(".film24-card-meta span")
             .map { it.text().trim() }
@@ -164,6 +163,48 @@ class FilmaOnProvider : MainAPI() {
         val actors = actorNames.map {
             ActorData(Actor(it, null), ActorRole.Supporting, null, null)
         }
+
+        if (isSeries) {
+            val episodes = document.select("#seasons ul.episodios li").mapNotNull { item ->
+                val link = item.selectFirst(".episodiotitle a[href]") ?: return@mapNotNull null
+                val episodeUrl = link.absUrl("href").ifBlank { link.attr("href") }
+                if (episodeUrl.isBlank()) return@mapNotNull null
+
+                val numbers = Regex("""(\d+)\s*[-x×]\s*(\d+)""")
+                    .find(item.selectFirst(".numerando")?.text().orEmpty())
+                    ?.groupValues
+                val episodeData = FilmaOnLoadData(
+                    type = "tv",
+                    episodeUrl = episodeUrl,
+                )
+
+                newEpisode(jacksonObjectMapper().writeValueAsString(episodeData)) {
+                    this.name = link.text().trim().ifBlank { "Episodi" }
+                    this.season = numbers?.getOrNull(1)?.toIntOrNull()
+                    this.episode = numbers?.getOrNull(2)?.toIntOrNull()
+                    this.posterUrl = item.selectFirst(".imagen img")
+                        ?.absUrl("src")
+                        ?.takeIf { it.isNotBlank() }
+                }
+            }
+
+            val seriesPlot = document.selectFirst("#info .wp-content p")
+                ?.text()
+                ?.takeIf { it.isNotBlank() }
+                ?: description
+
+            return newTvSeriesLoadResponse(title, url, TvType.TvSeries, episodes) {
+                this.posterUrl = poster
+                this.backgroundPosterUrl = poster
+                this.plot = seriesPlot
+                this.year = year
+                this.tags = if (genres.isNotEmpty()) genres else tags
+                this.actors = actors
+            }
+        }
+
+        val playerData = extractPlayerData(document, "movie") ?: return null
+        val data = jacksonObjectMapper().writeValueAsString(playerData)
 
         return newMovieLoadResponse(
             title,
@@ -193,7 +234,20 @@ class FilmaOnProvider : MainAPI() {
             return false
         }
 
-        loadData.subtitles.forEach { subtitle ->
+        val resolvedData = if (!loadData.episodeUrl.isNullOrBlank()) {
+            val episodeDocument = try {
+                app.get(loadData.episodeUrl).document
+            } catch (_: Exception) {
+                return false
+            }
+            extractPlayerData(episodeDocument, loadData.type)?.copy(
+                subtitles = extractSubtitles(episodeDocument),
+            ) ?: return false
+        } else {
+            loadData
+        }
+
+        resolvedData.subtitles.forEach { subtitle ->
             val name = subtitle.substringAfterLast('/').substringBefore('?')
             val lang = if (name.contains("sq", ignoreCase = true) ||
                 name.contains("alban", ignoreCase = true)
@@ -202,15 +256,15 @@ class FilmaOnProvider : MainAPI() {
         }
 
         var found = false
-        for (serverNumber in loadData.serverNumbers) {
+        for (serverNumber in resolvedData.serverNumbers) {
             try {
                 val response = app.post(
                     "$mainUrl/wp-admin/admin-ajax.php",
                     data = mapOf(
                         "action" to "doo_player_ajax",
-                        "post" to loadData.postId,
+                        "post" to resolvedData.postId,
                         "nume" to serverNumber,
-                        "type" to "movie",
+                        "type" to resolvedData.type,
                     ),
                 ).parsed<FilmaOnPlayerResponse>()
                 val source = response.embed_url?.trim()?.takeIf { it.isNotBlank() }
@@ -225,7 +279,9 @@ class FilmaOnProvider : MainAPI() {
 
     private fun parseCards(document: org.jsoup.nodes.Document): List<FilmaOnCard> {
         return document.select("article.film24-card").mapNotNull { card ->
-            val link = card.selectFirst("a[href*=/filma/]")?.attr("href")?.trim()
+            val link = card.selectFirst("a[href*=/filma/], a[href*=/seriale/]")
+                ?.attr("href")
+                ?.trim()
                 ?: return@mapNotNull null
             val url = if (link.startsWith("http")) link else "$mainUrl$link"
             val title = card.selectFirst("h3 a")?.text()?.trim()
@@ -235,12 +291,20 @@ class FilmaOnProvider : MainAPI() {
             val year = card.selectFirst(".film24-year")?.text()?.trim()?.toIntOrNull()
                 ?: Regex("""\b(19|20)\d{2}\b""").find(title)?.value?.toIntOrNull()
             val quality = card.selectFirst(".film24-quality")?.text()?.trim()
+            val type = if (url.contains("/seriale/")) TvType.TvSeries else TvType.Movie
 
-            FilmaOnCard(title, url, poster, year, quality)
+            FilmaOnCard(title, url, poster, year, quality, type)
         }.distinctBy { it.url }
     }
 
     private fun FilmaOnCard.toSearchResponse(): SearchResponse {
+        if (type == TvType.TvSeries) {
+            return newTvSeriesSearchResponse(title, url, TvType.TvSeries) {
+                posterUrl = this@toSearchResponse.poster
+                year = this@toSearchResponse.year
+            }
+        }
+
         return newMovieSearchResponse(title, url, TvType.Movie) {
             posterUrl = poster
             year = this@toSearchResponse.year
@@ -252,6 +316,27 @@ class FilmaOnProvider : MainAPI() {
                 else -> null
             }
         }
+    }
+
+    private fun extractPlayerData(
+        document: org.jsoup.nodes.Document,
+        defaultType: String,
+    ): FilmaOnLoadData? {
+        val options = document.select("li.dooplay_player_option[data-post][data-nume]")
+        val firstOption = options.firstOrNull() ?: return null
+        val postId = firstOption.attr("data-post").takeIf { it.isNotBlank() } ?: return null
+        val serverNumbers = options.map { it.attr("data-nume") }
+            .filter { it.isNotBlank() && it != "trailer" }
+            .distinct()
+        if (serverNumbers.isEmpty()) return null
+
+        val type = firstOption.attr("data-type").ifBlank { defaultType }
+        return FilmaOnLoadData(
+            postId = postId,
+            serverNumbers = serverNumbers,
+            subtitles = extractSubtitles(document),
+            type = type,
+        )
     }
 
     private fun extractSubtitles(document: org.jsoup.nodes.Document): List<String> {
@@ -273,5 +358,6 @@ class FilmaOnProvider : MainAPI() {
         val poster: String?,
         val year: Int?,
         val quality: String?,
+        val type: TvType,
     )
 }
