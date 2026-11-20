@@ -1,0 +1,9 @@
+{
+  "iconUrl": "https://filmaon.live/wp-content/uploads/2026/06/apple-touch-icon.png",
+  "name": "Albanian CloudStream Providers",
+  "description": "Filma dhe seriale me titra shqip nga CineShqip dhe FilmaOn.",
+  "manifestVersion": 1,
+  "pluginLists": [
+    "https://raw.githubusercontent.com/jurim007/cs-007-extension/builds/plugins.json"
+  ]
+}
