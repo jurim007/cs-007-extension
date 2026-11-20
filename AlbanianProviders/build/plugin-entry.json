@@ -1,0 +1,20 @@
+{
+    "url": "https://raw.githubusercontent.com/jurim007/cs-007-extension/builds/AlbanianProviders.cs3",
+    "status": 1,
+    "version": 1,
+    "name": "AlbanianProviders",
+    "internalName": "AlbanianProviders",
+    "authors": [
+        "jurim007"
+    ],
+    "description": "Filma dhe p\u00ebrmbajtje shqiptare nga CineShqip dhe FilmaOn",
+    "fileSize": 37408,
+    "repositoryUrl": "https://github.com/jurim007/cs-007-extension",
+    "language": "sq",
+    "tvTypes": [
+        "Movie"
+    ],
+    "iconUrl": "https://filmaon.live/wp-content/uploads/2026/06/apple-touch-icon.png",
+    "apiVersion": 1,
+    "fileHash": "sha256-45301f20c9c4357a18140ea30cf5f617789b2c917dbf92ec7c176bdb44f5371d"
+}
