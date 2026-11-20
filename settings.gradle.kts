@@ -1,4 +1,4 @@
-rootProject.name = "AlbanianCloudstreamPlugins"
+rootProject.name = "007"
 
 // This file sets what projects are included.
 // All new projects should get automatically included unless specified in the "disabled" variable.
