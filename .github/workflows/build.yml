@@ -65,11 +65,9 @@ jobs:
               exit "$ls_remote_status"
             fi
             git checkout --orphan builds
-            git rm -rf .
           fi
 
-          find . -maxdepth 1 -type f -name '*.cs3' -delete
-          rm -f plugins.json
+          git rm -rf .
           cp "$GITHUB_WORKSPACE"/publish/*.cs3 .
           cp "$GITHUB_WORKSPACE/publish/plugins.json" .
           cp "$GITHUB_WORKSPACE/publish/repo.json" .

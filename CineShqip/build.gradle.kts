@@ -7,7 +7,7 @@ cloudstream {
     tvTypes = listOf("Movie")
     requiresResources = true
     language = "sq"
-    iconUrl = "https://cineshqip.com/logo.webp"
+    iconUrl = "https://www.cineshqip.com/favicon.png"
 }
 
 android {
