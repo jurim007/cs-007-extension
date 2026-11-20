@@ -46,6 +46,7 @@ jobs:
           mkdir -p "$GITHUB_WORKSPACE/publish"
           find . -path '*/build/*.cs3' -type f -exec cp {} "$GITHUB_WORKSPACE/publish/" \;
           cp build/plugins.json "$GITHUB_WORKSPACE/publish/"
+          cp repo.json "$GITHUB_WORKSPACE/publish/"
 
       - name: Publish builds branch
         shell: bash
@@ -71,6 +72,7 @@ jobs:
           rm -f plugins.json
           cp "$GITHUB_WORKSPACE"/publish/*.cs3 .
           cp "$GITHUB_WORKSPACE/publish/plugins.json" .
+          cp "$GITHUB_WORKSPACE/publish/repo.json" .
 
           git add -A
           if git diff --cached --quiet; then

@@ -23,6 +23,12 @@ The plugin artifact is generated at:
 
 `AlbanianProviders/build/AlbanianProviders.cs3`
 
+## Add the repository to CloudStream
+
+Add this repository URL in CloudStream:
+
+`https://raw.githubusercontent.com/jurim007/cs-007-extension/builds/repo.json`
+
 ## CI
 
 The GitHub Actions workflow builds all plugin modules and publishes generated `.cs3` artifacts and `plugins.json`.
