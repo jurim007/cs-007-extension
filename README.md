@@ -4,7 +4,7 @@ Independent CloudStream plugins for Albanian-language movie and series sources.
 
 ## Providers
 
-- **CineShqip** - catalog, search, genres, movie details and alternate video servers
+- **CineShqip** - movie and series catalog/search, episode playback, and alternate video servers
 - **FilmaOn** - movie and series catalog/search, episode playback, and alternate DooPlayer servers
 
 ## Requirements

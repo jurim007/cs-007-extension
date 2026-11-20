@@ -1,6 +1,7 @@
 package com.albanianproviders.cineshqip
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.lagradost.cloudstream3.*
@@ -67,10 +68,43 @@ data class CineMovieDetails(
     val slug: String? = null,
 )
 
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class CineTvDetails(
+    val id: Int? = null,
+    val title: String? = null,
+    val posterUrl: String? = null,
+    val backdropUrl: String? = null,
+    val year: Int? = null,
+    val genres: List<String>? = null,
+    val overview: String? = null,
+    val cast: List<String>? = null,
+)
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class CineTvEpisode(
+    val id: Any? = null,
+    val seasonNumber: Int? = null,
+    val episodeNumber: Int? = null,
+    val title: String? = null,
+    val overview: String? = null,
+    val runtime: Int? = null,
+    val stillUrl: String? = null,
+    val videoSources: List<CineVideoSource>? = null,
+    val subtitleTracks: List<JsonNode>? = null,
+)
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class CineVideoSource(
+    val url: String? = null,
+    val sourceType: String? = null,
+    val resolvedUrl: String? = null,
+    val active: Boolean? = null,
+)
+
 class CineShqipProvider : MainAPI() {
     override var mainUrl = "https://www.cineshqip.com"
     override var name = "CineShqip"
-    override val supportedTypes = setOf(TvType.Movie)
+    override val supportedTypes = setOf(TvType.Movie, TvType.TvSeries)
     override var lang = "sq"
     override val hasMainPage = true
     override val hasQuickSearch = false
@@ -99,6 +133,7 @@ class CineShqipProvider : MainAPI() {
 
     override val mainPage = listOf(
         MainPageData("Të rejat", "latest"),
+        MainPageData("Serialet e fundit", "tv-shows"),
         MainPageData("Më të shikuarat", "popular"),
         MainPageData("Më të vlerësuarat", "top-rated"),
         MainPageData("Aksion", "genre/28"),
@@ -122,6 +157,8 @@ class CineShqipProvider : MainAPI() {
         val url = when {
             request.data == "latest" ->
                 "$mainUrl/api/catalog/latest?page=$page&limit=30"
+            request.data == "tv-shows" ->
+                "$mainUrl/api/catalog/tv-shows?page=$page&limit=30"
             request.data.startsWith("genre/") ->
                 "$mainUrl/api/catalog/${request.data}?page=$page&limit=30"
             else ->
@@ -135,7 +172,7 @@ class CineShqipProvider : MainAPI() {
         }
         val home = newHomePageResponse(
             request.name,
-            items.mapNotNull { it.toSearchResponse() },
+            items.mapNotNull { it.toSearchResponse(request.data == "tv-shows") },
         )
         return home
     }
@@ -149,7 +186,6 @@ class CineShqipProvider : MainAPI() {
                 params = mapOf("q" to query, "page" to "1", "limit" to "30"),
             ).parsed<CineCatalogResponse>().items
                 .orEmpty()
-                .filter { it.type != "tv-show" && it.mediaType != "tv" }
                 .mapNotNull { it.toSearchResponse() }
         } catch (_: Throwable) {
             emptyList()
@@ -157,8 +193,10 @@ class CineShqipProvider : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse? {
-        val id = Regex("""/movie/(\d+)""").find(url)?.groupValues?.get(1)
-            ?: return null
+        val tvId = Regex("""/tv/(\d+)""").find(url)?.groupValues?.get(1)
+        if (tvId != null) return loadTvSeries(url, tvId)
+
+        val id = Regex("""/movie/(\d+)""").find(url)?.groupValues?.get(1) ?: return null
 
         val html = try {
             app.get(url).text
@@ -205,6 +243,73 @@ class CineShqipProvider : MainAPI() {
         }
     }
 
+    private suspend fun loadTvSeries(url: String, id: String): LoadResponse? {
+        val html = try {
+            app.get(url).text
+        } catch (_: Exception) {
+            return null
+        }
+        val details = try {
+            app.get("$mainUrl/api/catalog/tv/$id").parsed<CineTvDetails>()
+        } catch (_: Exception) {
+            return null
+        }
+
+        val episodes = extractTvEpisodes(html).mapNotNull { episode ->
+            val episodeTitle = episode.title?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+            val sources = episode.videoSources.orEmpty()
+                .filter { it.active != false && it.sourceType in setOf("embed", "direct") }
+                .mapNotNull { source ->
+                    val url = if (source.sourceType == "direct") {
+                        source.resolvedUrl ?: source.url
+                    } else {
+                        source.url ?: source.resolvedUrl
+                    }
+                    url?.takeIf { it.startsWith("http") }
+                }
+                .distinct()
+            if (sources.isEmpty()) return@mapNotNull null
+
+            val subtitles = episode.subtitleTracks.orEmpty().mapNotNull { track ->
+                listOf("url", "src", "file", "subtitleUrl", "fileUrl")
+                    .firstNotNullOfOrNull { key ->
+                        track.get(key)?.takeIf { it.isTextual }?.asText()
+                    }
+                    ?.takeIf { it.startsWith("http") }
+            }.distinct()
+            val episodeData = CineLoadData(
+                id = episode.id?.toString()
+                    ?: "$id-${episode.seasonNumber}-${episode.episodeNumber}",
+                sources = sources,
+                subtitles = subtitles,
+            )
+
+            newEpisode(jacksonObjectMapper().writeValueAsString(episodeData)) {
+                this.name = episodeTitle
+                this.season = episode.seasonNumber
+                this.episode = episode.episodeNumber
+                this.posterUrl = episode.stillUrl
+                this.description = episode.overview
+                this.runTime = episode.runtime
+            }
+        }
+        if (episodes.isEmpty()) return null
+
+        val title = details.title?.takeIf { it.isNotBlank() } ?: "Serial pa titull"
+        val poster = details.posterUrl?.takeIf { it.startsWith("http") }
+        val actors = details.cast.orEmpty()
+            .map { ActorData(Actor(it, null), null, null, null) }
+
+        return newTvSeriesLoadResponse(title, url, TvType.TvSeries, episodes) {
+            this.posterUrl = poster
+            this.backgroundPosterUrl = details.backdropUrl?.takeIf { it.startsWith("http") }
+            this.plot = details.overview
+            this.year = details.year
+            this.tags = details.genres
+            this.actors = actors
+        }
+    }
+
     override suspend fun loadLinks(
         data: String,
         isCasting: Boolean,
@@ -237,25 +342,87 @@ class CineShqipProvider : MainAPI() {
         return found
     }
 
-    private fun CineCatalogItem.toSearchResponse(): SearchResponse? {
-        val movieId = tmdbId ?: id?.toString()?.toIntOrNull()
-        val movieTitle = title?.takeIf { it.isNotBlank() } ?: return null
-        if (movieId == null) return null
+    private fun CineCatalogItem.toSearchResponse(isTvShow: Boolean = false): SearchResponse? {
+        val contentId = tmdbId ?: id?.toString()?.toIntOrNull()
+        val contentTitle = title?.takeIf { it.isNotBlank() } ?: return null
+        if (contentId == null) return null
 
-        val movieUrl = if (!slug.isNullOrBlank()) {
-            "$mainUrl/movie/$movieId-$slug"
+        val isTv = isTvShow || type == "tv-show" || mediaType == "tv"
+        val contentUrl = if (!slug.isNullOrBlank()) {
+            "$mainUrl/${if (isTv) "tv" else "movie"}/$contentId-$slug"
         } else {
-            "$mainUrl/movie/$movieId"
+            "$mainUrl/${if (isTv) "tv" else "movie"}/$contentId"
         }
 
-        return newMovieSearchResponse(movieTitle, movieUrl, TvType.Movie) {
-            this.posterUrl = posterUrl
-            this.year = year
-            this.quality = when {
-                overview.isNullOrBlank() -> null
-                else -> null
+        return if (isTv) {
+            newTvSeriesSearchResponse(contentTitle, contentUrl, TvType.TvSeries) {
+                this.posterUrl = posterUrl
+                this.year = year
+            }
+        } else {
+            newMovieSearchResponse(contentTitle, contentUrl, TvType.Movie) {
+                this.posterUrl = posterUrl
+                this.year = year
             }
         }
+    }
+
+    private fun extractTvEpisodes(html: String): List<CineTvEpisode> {
+        val mapper = jacksonObjectMapper()
+        // The catalog API omits episodes; Next.js Flight includes their playback sources.
+        val flightData = Regex(
+            """self\.__next_f\.push\(\[1,("(?:\\.|[^"\\])*")\]\)"""
+        ).findAll(html)
+
+        for (match in flightData) {
+            val payload = try {
+                mapper.readValue<String>(match.groupValues[1])
+            } catch (_: Exception) {
+                continue
+            }
+            val episodesProperty = payload.indexOf("\"episodes\":[")
+            if (episodesProperty < 0) continue
+
+            val arrayStart = payload.indexOf('[', episodesProperty)
+            val arrayEnd = findJsonArrayEnd(payload, arrayStart) ?: continue
+            val episodes = try {
+                mapper.readValue<List<CineTvEpisode>>(payload.substring(arrayStart, arrayEnd + 1))
+            } catch (_: Exception) {
+                continue
+            }
+            if (episodes.isNotEmpty()) return episodes
+        }
+
+        return emptyList()
+    }
+
+    private fun findJsonArrayEnd(json: String, start: Int): Int? {
+        var depth = 0
+        var inString = false
+        var escaped = false
+
+        // Ignore brackets inside episode descriptions while finding the array boundary.
+        for (index in start until json.length) {
+            val char = json[index]
+            if (inString) {
+                when {
+                    escaped -> escaped = false
+                    char == '\\' -> escaped = true
+                    char == '"' -> inString = false
+                }
+            } else {
+                when (char) {
+                    '"' -> inString = true
+                    '[' -> depth++
+                    ']' -> {
+                        depth--
+                        if (depth == 0) return index
+                    }
+                }
+            }
+        }
+
+        return null
     }
 
     private fun extractSubtitleUrls(html: String): List<String> {

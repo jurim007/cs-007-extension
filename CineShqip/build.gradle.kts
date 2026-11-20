@@ -1,10 +1,10 @@
-version = 1
+version = 2
 
 cloudstream {
-    description = "Filma me titra shqip nga CineShqip"
+    description = "Filma dhe seriale me titra shqip nga CineShqip"
     authors = listOf("jurim007")
     status = 1
-    tvTypes = listOf("Movie")
+    tvTypes = listOf("Movie", "TvSeries")
     requiresResources = true
     language = "sq"
     iconUrl = "https://www.cineshqip.com/favicon.png"

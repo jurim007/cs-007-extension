@@ -1,4 +1,4 @@
-version = 1
+version = 2
 
 cloudstream {
     description = "Filma dhe seriale me titra shqip nga FilmaOn"
