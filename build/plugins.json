@@ -1,0 +1,44 @@
+[
+    {
+        "url": "https://raw.githubusercontent.com/jurim007/cs-007-extension/builds/CineShqip.cs3",
+        "status": 1,
+        "version": 3,
+        "name": "CineShqip",
+        "internalName": "CineShqip",
+        "authors": [
+            "jurim007"
+        ],
+        "description": "Filma dhe seriale me titra shqip nga CineShqip",
+        "fileSize": 34412,
+        "repositoryUrl": "https://github.com/jurim007/cs-007-extension",
+        "language": "sq",
+        "tvTypes": [
+            "Movie",
+            "TvSeries"
+        ],
+        "iconUrl": "https://www.cineshqip.com/favicon.png",
+        "apiVersion": 1,
+        "fileHash": "sha256-b7d976598be2e4066677c525af131ada694b5e56d21a4cec2f4a2f7d6a79c3e8"
+    },
+    {
+        "url": "https://raw.githubusercontent.com/jurim007/cs-007-extension/builds/FilmaOn.cs3",
+        "status": 1,
+        "version": 3,
+        "name": "FilmaOn",
+        "internalName": "FilmaOn",
+        "authors": [
+            "jurim007"
+        ],
+        "description": "Filma dhe seriale me titra shqip nga FilmaOn",
+        "fileSize": 26275,
+        "repositoryUrl": "https://github.com/jurim007/cs-007-extension",
+        "language": "sq",
+        "tvTypes": [
+            "Movie",
+            "TvSeries"
+        ],
+        "iconUrl": "https://filmaon.live/wp-content/uploads/2026/06/apple-touch-icon.png",
+        "apiVersion": 1,
+        "fileHash": "sha256-3e707dd9cf0a26ab396501b14cba8a7489501b85ab0eefe55937e3a43ad254e5"
+    }
+]
