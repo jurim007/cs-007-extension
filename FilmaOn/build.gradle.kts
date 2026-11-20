@@ -1,4 +1,4 @@
-version = 2
+version = 3
 
 cloudstream {
     description = "Filma dhe seriale me titra shqip nga FilmaOn"
@@ -15,4 +15,8 @@ android {
         buildConfig = true
         viewBinding = false
     }
+}
+
+dependencies {
+    compileOnly("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.1")
 }

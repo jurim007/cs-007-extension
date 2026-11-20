@@ -356,13 +356,13 @@ class CineShqipProvider : MainAPI() {
 
         return if (isTv) {
             newTvSeriesSearchResponse(contentTitle, contentUrl, TvType.TvSeries) {
-                this.posterUrl = posterUrl
-                this.year = year
+                this.posterUrl = this@toSearchResponse.posterUrl
+                this.year = this@toSearchResponse.year
             }
         } else {
             newMovieSearchResponse(contentTitle, contentUrl, TvType.Movie) {
-                this.posterUrl = posterUrl
-                this.year = year
+                this.posterUrl = this@toSearchResponse.posterUrl
+                this.year = this@toSearchResponse.year
             }
         }
     }

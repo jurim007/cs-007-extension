@@ -1,4 +1,4 @@
-version = 2
+version = 3
 
 cloudstream {
     description = "Filma dhe seriale me titra shqip nga CineShqip"

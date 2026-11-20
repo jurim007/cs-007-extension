@@ -6,6 +6,8 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.loadExtractor
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.withTimeoutOrNull
 import org.jsoup.Jsoup
 
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -269,8 +271,13 @@ class FilmaOnProvider : MainAPI() {
                 ).parsed<FilmaOnPlayerResponse>()
                 val source = response.embed_url?.trim()?.takeIf { it.isNotBlank() }
                     ?: continue
-                found = loadExtractor(source, mainUrl, subtitleCallback, callback) || found
-            } catch (_: Throwable) {
+                val extracted = withTimeoutOrNull(6_000L) {
+                    loadExtractor(source, mainUrl, subtitleCallback, callback)
+                } ?: false
+                found = extracted || found
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
                 // A failed server should not prevent the remaining servers from loading.
             }
         }
