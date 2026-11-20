@@ -14,6 +14,7 @@ class ExamplePlugin: Plugin() {
 
         // All providers should be added in this manner
         registerMainAPI(CineShqipProvider())
+        registerMainAPI(FilmaOnProvider())
 
         openSettings = {
             val frag = BlankFragment(this)

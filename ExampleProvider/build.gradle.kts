@@ -9,7 +9,7 @@ version = 1
 cloudstream {
     // All of these properties are optional, you can safely remove any of them.
 
-    description = "Filma dhe përmbajtje shqip nga CineShqip"
+    description = "Filma dhe përmbajtje shqiptare nga CineShqip dhe FilmaOn"
     authors = listOf("jurim007")
 
     /**
