@@ -1,4 +1,4 @@
-package com.example
+package com.albanianproviders
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
