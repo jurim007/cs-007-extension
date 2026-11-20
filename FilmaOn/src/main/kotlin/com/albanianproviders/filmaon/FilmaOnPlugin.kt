@@ -1,13 +1,12 @@
-package com.albanianproviders
+package com.albanianproviders.filmaon
 
 import android.content.Context
 import com.lagradost.cloudstream3.plugins.CloudstreamPlugin
 import com.lagradost.cloudstream3.plugins.Plugin
 
 @CloudstreamPlugin
-class AlbanianProvidersPlugin : Plugin() {
+class FilmaOnPlugin : Plugin() {
     override fun load(context: Context) {
-        registerMainAPI(CineShqipProvider())
         registerMainAPI(FilmaOnProvider())
     }
 }

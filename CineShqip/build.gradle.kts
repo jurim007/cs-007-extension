@@ -1,16 +1,13 @@
-dependencies {
-}
-
 version = 1
 
 cloudstream {
-    description = "Filma dhe përmbajtje shqiptare nga CineShqip dhe FilmaOn"
+    description = "Filma me titra shqip nga CineShqip"
     authors = listOf("jurim007")
     status = 1
     tvTypes = listOf("Movie")
     requiresResources = true
     language = "sq"
-    iconUrl = "https://filmaon.live/wp-content/uploads/2026/06/apple-touch-icon.png"
+    iconUrl = "https://cineshqip.com/logo.webp"
 }
 
 android {

@@ -1,4 +1,4 @@
-package com.albanianproviders
+package com.albanianproviders.cineshqip
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
@@ -176,14 +176,7 @@ class CineShqipProvider : MainAPI() {
         val poster = details.posterUrl?.takeIf { it.startsWith("http") }
         val backdrop = details.backdropUrl?.takeIf { it.startsWith("http") }
 
-        val sources = if (html.isNotBlank()) {
-            Jsoup.parse(html).select("iframe[src]")
-                .mapNotNull { it.attr("src").takeIf { src -> src.startsWith("http") } }
-                .filterNot { it.contains("youtube.com") }
-                .distinct()
-        } else {
-            emptyList()
-        }
+        val sources = extractVideoSources(html)
 
         val subtitleUrls = extractSubtitleUrls(html)
 
@@ -277,6 +270,33 @@ class CineShqipProvider : MainAPI() {
             .toList()
 
         return (trackUrls + regexUrls).distinct()
+    }
+
+    private fun extractVideoSources(html: String): List<String> {
+        val payloadSources = Regex(
+            """\\"label\\":\\"(.*?)\\",\\"url\\":\\"(https?://.*?)\\",\\"sourceType\\":\\"(.*?)\\".*?\\"active\\":(true|false)"""
+        ).findAll(html)
+            .mapNotNull { match ->
+                if (match.groupValues[4] != "true") return@mapNotNull null
+                val sourceType = match.groupValues[3]
+                val sourceUrl = match.groupValues[2]
+                    .replace("\\/", "/")
+                    .replace("\\u0026", "&")
+                sourceUrl.takeIf {
+                    sourceType in setOf("embed", "direct") && it.startsWith("http")
+                }
+            }
+            .toList()
+
+        val iframeSources = if (html.isNotBlank()) {
+            Jsoup.parse(html).select("iframe[src]")
+                .mapNotNull { it.attr("src").takeIf { src -> src.startsWith("http") } }
+                .filterNot { it.contains("youtube.com") }
+        } else {
+            emptyList()
+        }
+
+        return (payloadSources + iframeSources).distinct()
     }
 }
 

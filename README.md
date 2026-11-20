@@ -1,11 +1,11 @@
 # Albanian CloudStream Providers
 
-CloudStream providers for Albanian-language movie sources.
+Independent CloudStream plugins for Albanian-language movie sources.
 
 ## Providers
 
-- **CineShqip** - catalog, search, genres, movie details and embed video sources
-- **FilmaOn** - catalog, search, genres, movie details and multiple DooPlayer servers
+- **CineShqip** - catalog, search, genres, movie details and alternate video servers
+- **FilmaOn** - catalog, search, genres, movie details and alternate DooPlayer servers
 
 ## Requirements
 
@@ -16,12 +16,13 @@ CloudStream providers for Albanian-language movie sources.
 
 ```bash
 ANDROID_HOME="$HOME/Android/Sdk" ANDROID_SDK_ROOT="$HOME/Android/Sdk" \
-  ./gradlew :AlbanianProviders:make
+  ./gradlew :CineShqip:make :FilmaOn:make makePluginsJson
 ```
 
-The plugin artifact is generated at:
+The plugins are generated separately:
 
-`AlbanianProviders/build/AlbanianProviders.cs3`
+- `CineShqip/build/CineShqip.cs3`
+- `FilmaOn/build/FilmaOn.cs3`
 
 ## Add the repository to CloudStream
 
