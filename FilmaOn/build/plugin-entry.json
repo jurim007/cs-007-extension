@@ -1,0 +1,20 @@
+{
+    "url": "https://raw.githubusercontent.com/jurim007/cs-007-extension/builds/FilmaOn.cs3",
+    "status": 1,
+    "version": 1,
+    "name": "FilmaOn",
+    "internalName": "FilmaOn",
+    "authors": [
+        "jurim007"
+    ],
+    "description": "Filma me titra shqip nga FilmaOn",
+    "fileSize": 21959,
+    "repositoryUrl": "https://github.com/jurim007/cs-007-extension",
+    "language": "sq",
+    "tvTypes": [
+        "Movie"
+    ],
+    "iconUrl": "https://filmaon.live/wp-content/uploads/2026/06/apple-touch-icon.png",
+    "apiVersion": 1,
+    "fileHash": "sha256-0c4cda753ff21d7cff3748d78cd9e9916dc98167ca128d86266b54db8b875687"
+}
